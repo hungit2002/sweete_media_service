@@ -27,6 +27,31 @@ async def upload_image(folder : str | None = None,file: UploadFile = File(...)):
         buffer.seek(0)
 
         upload_result = cloudinary.uploader.upload(buffer, folder=folder or "uploads", public_id=file.filename.split('.')[0])
-        return {"url": upload_result["secure_url"]}
+        print(upload_result)
+        data_result = {
+            'type' : upload_result["format"],
+            'created_at' : upload_result["created_at"],
+            'asset_folder' : upload_result["asset_folder"],
+            'original_name' : upload_result["display_name"],
+            'bytes' : upload_result["bytes"],
+            'secure_url' : upload_result["secure_url"],
+        }
+        return {
+            'meta' : {
+                "status": "success",
+                "message": "Get kindy homework report successfully",
+                "code": 200,
+            },
+            'result' : data_result
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Photo processing error : {str(e)}")
+        return {
+            'meta': {
+                "status": "fail",
+                "message": "upload image failed",
+                "code": 400,
+            },
+            'result': {
+                'error': str(e),
+            }
+        }
