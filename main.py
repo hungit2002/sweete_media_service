@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
 from fastapi.middleware.cors import CORSMiddleware
+import base64
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -49,7 +51,46 @@ async def upload_image(folder : str | None = None,file: UploadFile = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Photo processing error : {str(e)}")
+
+class ImageUploadRequest(BaseModel):
+    folder: str | None = None
+    file: str  
+
+@app.post("/upload-image-base64")
+async def upload_image(request: ImageUploadRequest):
+    try:
+        # Decode base64 image
+        image_data = base64.b64decode(request.file)
+        image = Image.open(BytesIO(image_data))
+
+        # Convert image to RGB if necessary
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        # Compress image and save to buffer
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG", quality=50)
+        buffer.seek(0)
+
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            buffer,
+            folder=request.folder or "uploads",
+            public_id="uploaded_image"
+        )
+
+        return {
+            "meta": {
+                "status": "success",
+                "message": "Image uploaded successfully",
+                "code": 200
+            },
+            "result": upload_result
+        }
     
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Photo processing error: {str(e)}")
+
 
 @app.post("/upload-gif")
 async def upload_image(folder : str | None = None,file: UploadFile = File(...)):
